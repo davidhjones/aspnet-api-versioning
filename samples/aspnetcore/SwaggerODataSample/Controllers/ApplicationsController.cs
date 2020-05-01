@@ -14,6 +14,7 @@
     /// </summary>
     [ApiVersion( "1.0" )]
     [ODataRoutePrefix( "Applications" )]
+    //[ODataRoutePrefix( "Contexts({contextId})/Applications" )] // Note: This forces the EDModel to contain a Contexts entity set, which isn't indicitive to how the data is modeled.
     public class ApplicationsController : ODataController
         {
         /// <summary>
