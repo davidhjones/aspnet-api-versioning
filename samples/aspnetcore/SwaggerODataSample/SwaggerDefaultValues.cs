@@ -45,7 +45,13 @@
                     parameter.Schema.Default = new OpenApiString( description.DefaultValue.ToString() );
                 }
 
-                parameter.Required |= description.IsRequired;
+                if ( parameter.Name == "contextId" )
+                    {
+                    parameter.In = ParameterLocation.Path;
+                    parameter.Required = true;
+                    }
+                else
+                    parameter.Required |= description.IsRequired;
             }
         }
     }

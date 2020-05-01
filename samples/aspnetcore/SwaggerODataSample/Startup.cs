@@ -34,26 +34,8 @@
             services.AddODataApiExplorer(
                 options =>
                 {
-                    // add the versioned api explorer, which also adds IApiVersionDescriptionProvider service
-                    // note: the specified format code will format the version as "'v'major[.minor][-status]"
                     options.GroupNameFormat = "'v'VVV";
-
-                    // note: this option is only necessary when versioning by url segment. the SubstitutionFormat
-                    // can also be used to control the format of the API version in route templates
                     options.SubstituteApiVersionInUrl = true;
-
-                    // configure query options (which cannot otherwise be configured by OData conventions)
-                    options.QueryOptions.Controller<V2.PeopleController>()
-                                        .Action( c => c.Get( default ) )
-                                            .Allow( Skip | Count )
-                                            .AllowTop( 100 )
-                                            .AllowOrderBy( "firstName", "lastName" );
-
-                    options.QueryOptions.Controller<V3.PeopleController>()
-                                        .Action( c => c.Get( default ) )
-                                            .Allow( Skip | Count )
-                                            .AllowTop( 100 )
-                                            .AllowOrderBy( "firstName", "lastName" );
                 } );
             services.AddTransient<IConfigureOptions<SwaggerGenOptions>, ConfigureSwaggerOptions>();
             services.AddSwaggerGen(
@@ -75,6 +57,8 @@
         /// <param name="provider">The API version descriptor provider used to enumerate defined API versions.</param>
         public void Configure( IApplicationBuilder app, VersionedODataModelBuilder modelBuilder, IApiVersionDescriptionProvider provider )
         {
+            app.UseDeveloperExceptionPage();
+
             app.UseMvc(
                 routeBuilder =>
                 {
@@ -86,7 +70,10 @@
                     // global odata query options
                     routeBuilder.Count();
 
-                    routeBuilder.MapVersionedODataRoutes( "odata", "api", modelBuilder.GetEdmModels() );
+                    routeBuilder.MapVersionedODataRoutes( "odata", "api/v{version:apiVersion}/Contexts({contextId})", modelBuilder.GetEdmModels() );
+
+                    //Note: Add 2nd route prefix. This doesn't do exactly what I want, because it adds all Controllers with this prefix.
+                    //routeBuilder.MapVersionedODataRoutes( "odata2", "api/v{version:apiVersion}", modelBuilder.GetEdmModels() );
                 } );
             app.UseSwagger();
             app.UseSwaggerUI(

@@ -1,4 +1,4 @@
-﻿namespace Microsoft.Examples
+﻿/*namespace Microsoft.Examples
 {
     using Microsoft.AspNet.OData;
     using Microsoft.AspNet.OData.Routing;
@@ -21,4 +21,4 @@
         [ODataRoute( "GetSalesTaxRate(PostalCode={postalCode})" )]
         public IActionResult GetSalesTaxRate( int postalCode ) => Ok( 5.6 );
     }
-}
+}*/
