@@ -62,13 +62,13 @@
             app.UseMvc(
                 routeBuilder =>
                 {
-                    // the following will not work as expected
-                    // BUG: https://github.com/OData/WebApi/issues/1837
-                    // routeBuilder.SetDefaultODataOptions( new ODataOptions() { UrlKeyDelimiter = Parentheses } );
                     routeBuilder.ServiceProvider.GetRequiredService<ODataOptions>().UrlKeyDelimiter = Parentheses;
 
-                    // global odata query options
-                    routeBuilder.Count();
+                /*    
+                *   Try to Achieve:
+                *   GET ~/ api / v1 / Contexts({contextId}) / Applications
+                *   GET ~/ api / v1 / People
+                */
 
                     routeBuilder.MapVersionedODataRoutes( "odata", "api/v{version:apiVersion}/Contexts({contextId})", modelBuilder.GetEdmModels() );
 
