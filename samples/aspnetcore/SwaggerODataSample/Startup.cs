@@ -3,15 +3,21 @@
     using Microsoft.AspNet.OData;
     using Microsoft.AspNet.OData.Builder;
     using Microsoft.AspNet.OData.Extensions;
+    using Microsoft.AspNet.OData.Formatter;
     using Microsoft.AspNetCore.Builder;
+    using Microsoft.AspNetCore.Mvc;
     using Microsoft.AspNetCore.Mvc.ApiExplorer;
+    using Microsoft.Examples.Models;
     using Microsoft.Extensions.DependencyInjection;
     using Microsoft.Extensions.Options;
     using Microsoft.Extensions.PlatformAbstractions;
+    using Microsoft.Net.Http.Headers;
+    using Microsoft.OData.Edm;
     using Swashbuckle.AspNetCore.SwaggerGen;
+    using System.Collections.Generic;
     using System.IO;
+    using System.Linq;
     using System.Reflection;
-    using static Microsoft.AspNet.OData.Query.AllowedQueryOptions;
     using static Microsoft.AspNetCore.Mvc.CompatibilityVersion;
     using static Microsoft.OData.ODataUrlKeyDelimiter;
 
@@ -31,6 +37,20 @@
             services.AddMvc( options => options.EnableEndpointRouting = false ).SetCompatibilityVersion( Latest );
             services.AddApiVersioning( options => options.ReportApiVersions = true );
             services.AddOData().EnableApiVersioning();
+
+            // Workaround: https://github.com/OData/WebApi/issues/1177
+            services.AddMvcCore( options =>
+            {
+                foreach ( var outputFormatter in options.OutputFormatters.OfType<ODataOutputFormatter>().Where( _ => _.SupportedMediaTypes.Count == 0 ) )
+                    {
+                    outputFormatter.SupportedMediaTypes.Add( new MediaTypeHeaderValue( "application/prs.odatatestxx-odata" ) );
+                    }
+                foreach ( var inputFormatter in options.InputFormatters.OfType<ODataInputFormatter>().Where( _ => _.SupportedMediaTypes.Count == 0 ) )
+                    {
+                    inputFormatter.SupportedMediaTypes.Add( new MediaTypeHeaderValue( "application/prs.odatatestxx-odata" ) );
+                    }
+            } );
+
             services.AddODataApiExplorer(
                 options =>
                 {
@@ -46,6 +66,8 @@
 
                     // integrate xml comments
                     options.IncludeXmlComments( XmlCommentsFilePath );
+
+                    //options.ResolveConflictingActions( apiDescriptions => apiDescriptions.First() );
                 } );
         }
 
@@ -62,18 +84,19 @@
             app.UseMvc(
                 routeBuilder =>
                 {
-                    routeBuilder.ServiceProvider.GetRequiredService<ODataOptions>().UrlKeyDelimiter = Parentheses;
+                    /*    
+                    *   Try to Achieve:
+                    *   GET ~/api/v1/People
+                    *   GET ~/api/v1/Contexts({contextId})/Applications
+                    */
 
-                /*    
-                *   Try to Achieve:
-                *   GET ~/ api / v1 / Contexts({contextId}) / Applications
-                *   GET ~/ api / v1 / People
-                */
+                    var apiVersion = new ApiVersion( 1, 0 );
 
-                    routeBuilder.MapVersionedODataRoutes( "odata", "api/v{version:apiVersion}/Contexts({contextId})", modelBuilder.GetEdmModels() );
+                    // Add ~/api/v1/People
+                    routeBuilder.MapVersionedODataRoutes( "odata-default", "api/v{version:apiVersion}", GetPeopleModels( apiVersion ) );
 
-                    //Note: Add 2nd route prefix. This doesn't do exactly what I want, because it adds all Controllers with this prefix.
-                    //routeBuilder.MapVersionedODataRoutes( "odata2", "api/v{version:apiVersion}", modelBuilder.GetEdmModels() );
+                    // Add ~/api/v1/Contexts({contextId})/Applications
+                    routeBuilder.MapVersionedODataRoutes( "odata-by-context", "api/v{version:apiVersion}/Contexts({contextId})", GetApplicationModels( apiVersion ) );
                 } );
             app.UseSwagger();
             app.UseSwaggerUI(
@@ -85,7 +108,33 @@
                         options.SwaggerEndpoint( $"/swagger/{description.GroupName}/swagger.json", description.GroupName.ToUpperInvariant() );
                     }
                 } );
-        }
+            }
+
+        private IEnumerable<IEdmModel> GetPeopleModels ( ApiVersion apiVersion )
+            {
+            var models = new List<IEdmModel>();
+            var builder = new ODataConventionModelBuilder().EnableLowerCamelCase();
+
+            var person = builder.EntitySet<Person>( "People" ).EntityType.HasKey( p => p.Id );
+
+            var model = builder.GetEdmModel();
+            model.SetAnnotationValue( model, new ApiVersionAnnotation( apiVersion ) );
+            models.Add( model );
+            return models;
+            }
+
+        private IEnumerable<IEdmModel> GetApplicationModels ( ApiVersion apiVersion )
+            {
+            var models = new List<IEdmModel>();
+            var builder = new ODataConventionModelBuilder().EnableLowerCamelCase();
+
+            var order = builder.EntitySet<Application>( "Applications" ).EntityType.HasKey( o => o.Id );
+
+            var model = builder.GetEdmModel();
+            model.SetAnnotationValue( model, new ApiVersionAnnotation( apiVersion ) );
+            models.Add( model );
+            return models;
+            }
 
         static string XmlCommentsFilePath
         {
